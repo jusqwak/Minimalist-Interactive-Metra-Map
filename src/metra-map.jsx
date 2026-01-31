@@ -94,10 +94,10 @@ const MAX_LINE_LEN = 340; // max distance from hub to outermost station
 // Keys should match `line.terminal` values (e.g. "Union Station").
 // Coordinates are in SVG space (same coordinate system as CX/CY).
 const HUB_COORDS = {
-  "Union Station": { x: CX - 24, y: CY + 8 },
-  "Ogilvie": { x: CX + 48, y: CY - 6 },
-  "LaSalle Street": { x: CX - 36, y: CY + 30 },
-  "Millennium Station": { x: CX + 30, y: CY + 40 },
+  "Union Station": { x: CX - 50, y: CY + 0 },
+  "Ogilvie": { x: CX - 75, y: CY - 8 },
+  "LaSalle Street": { x: CX - 10, y: CY + 30 },
+  "Millennium Station": { x: CX + 40, y: CY - 10 },
 };
 
 
@@ -115,41 +115,20 @@ function getAngle(idx, total) {
 }
 
 function computeLayout() {
-  const total = LINES.length;
-  const layout = LINES.map((line, idx) => {
-    const angle = getAngle(idx, total);
-    const stationCount = line.stations.length;
-    // first station is the hub terminal — we place it near the hub
-    const pts = line.stations.map((name, i) => {
-      if (i === 0) {
-        // hub station
-        // allow specific terminal hubs to be placed at custom coordinates
-        const terminalName = line.terminal || name;
-        if (HUB_COORDS && HUB_COORDS[terminalName]) {
-          const c = HUB_COORDS[terminalName];
-          return { x: c.x, y: c.y, name, isHub: true };
-        }
-        return {
-          x: CX + Math.cos(angle) * HUB_R,
-          y: CY + Math.sin(angle) * HUB_R,
-          name,
-          isHub: true,
-        };
-      }
-      const t = i / (stationCount - 1 || 1);
-      const dist = HUB_R + t * MAX_LINE_LEN;
+  const layout = LINES.map((line) => {
+    const pts = line.stations.map((station, i) => {
+      // Convert center-relative coordinates to SVG space by adding CX/CY
       return {
-        x: CX + Math.cos(angle) * dist,
-        y: CY + Math.sin(angle) * dist,
-        name,
-        isHub: false,
+        x: CX + station.x,
+        y: CY + station.y,
+        name: station.name,
+        isHub: i === 0, // first station is the hub
       };
     });
-    return { ...line, angle, points: pts };
+    return { ...line, points: pts };
   });
   return layout;
 }
-
 const LAYOUT = computeLayout();
 
 // Build a set of all unique station names for search
@@ -424,6 +403,14 @@ export default function MetraMap() {
           </span>
         </div>
       )}
+
+      {/* Disclaimer */}
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 24px", textAlign: "center", fontSize: 14, color: "#555", borderTop: "1px solid #2a2d3a" }}>
+        <p style={{ margin: "0 0 10px 0" }}>
+          A simplified unofficial map of the Chicago Metra rail system. This is NOT an accurate scale of locations or distances.
+          <br/> Created for educational purposes with no affiliation to Metra.
+        </p>
+      </div>
     </div>
   );
 }
