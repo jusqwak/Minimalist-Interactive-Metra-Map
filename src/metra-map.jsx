@@ -7,99 +7,88 @@ const LINES = [
     name: "BNSF",
     color: "#71c543",
     terminal: "Union Station",
-    stations: TrainLine.BNSF_STATIONS,
+    routes: [TrainLine.BNSF_STATIONS],
   },
   {
     id: "HC",
     name: "Heritage Corridor",
     color: "#481210",
     terminal: "Union Station",
-    stations: TrainLine.HC_STATIONS,
+    routes: [TrainLine.HC_STATIONS],
   },
   {
     id: "ME",
     name: "Metra Electric",
     color: "#cc6426",
     terminal: "Millennium Station",
-    stations: TrainLine.ME_STATIONS,
+    routes: TrainLine.ME_STATIONS,
   },
   {
     id: "MD-N",
     name: "Milwaukee District North",
     color: "#b15b21",
     terminal: "Union Station",
-    stations: TrainLine.MDN_STATIONS,
+    routes: [TrainLine.MDN_STATIONS],
   },
   {
     id: "MD-W",
     name: "Milwaukee District West",
     color: "#ddb338",
     terminal: "Union Station",
-    stations: TrainLine.MDW_STATIONS,
+    routes: [TrainLine.MDW_STATIONS],
   },
   {
     id: "NCS",
     name: "North Central Service",
     color: "#9481b9",
     terminal: "Union Station",
-    stations: TrainLine.NCS_STATIONS,
+    routes: [TrainLine.NCS_STATIONS],
   },
   {
     id: "RI",
     name: "Rock Island",
     color: "#bf321f",
     terminal: "LaSalle Street",
-    stations: TrainLine.RI_STATIONS,
+    routes: TrainLine.RI_STATIONS,
   },
   {
     id: "SWS",
     name: "SouthWest Service",
     color: "#2f34a4",
     terminal: "Union Station",
-    stations: TrainLine.SWS_STATIONS,
+    routes: [TrainLine.SWS_STATIONS],
   },
   {
     id: "UP-N",
     name: "Union Pacific North",
     color: "#45821a",
     terminal: "Ogilvie",
-    stations: TrainLine.UPW_STATIONS,
+    routes: [TrainLine.UPN_STATIONS],
   },
   {
     id: "UP-NW",
     name: "Union Pacific Northwest",
     color: "#f5ec42",
     terminal: "Ogilvie",
-    stations: TrainLine.UPNW_STATIONS,
+    routes: [TrainLine.UPNW_STATIONS],
   },
   {
     id: "UP-W",
     name: "Union Pacific West",
     color: "#e39185",
     terminal: "Ogilvie",
-    stations: TrainLine.UPW_STATIONS,
+    routes: [TrainLine.UPW_STATIONS],
   },
 ];
 
 // SVG layout: hub in center, lines radiate outward like spokes
 // Each line gets an angle. Stations are spaced evenly along the spoke.
-const SVG_W = 900;
+const SVG_W = 1100;
 const SVG_H = 900;
 const CX = SVG_W / 2;
 const CY = SVG_H / 2;
 const HUB_R = 52; // radius of the central hub cluster
 const MAX_LINE_LEN = 340; // max distance from hub to outermost station
-
-// Override locations for named terminals (editable).
-// Keys should match `line.terminal` values (e.g. "Union Station").
-// Coordinates are in SVG space (same coordinate system as CX/CY).
-const HUB_COORDS = {
-  "Union Station": { x: CX - 50, y: CY + 0 },
-  "Ogilvie": { x: CX - 75, y: CY - 8 },
-  "LaSalle Street": { x: CX - 10, y: CY + 30 },
-  "Millennium Station": { x: CX + 40, y: CY - 10 },
-};
-
 
 
 // Temporary grid settings to help plot hub coordinates (editable) 
@@ -116,28 +105,40 @@ function getAngle(idx, total) {
 
 function computeLayout() {
   const layout = LINES.map((line) => {
-    const pts = line.stations.map((station, i) => {
-      // Convert center-relative coordinates to SVG space by adding CX/CY
-      return {
-        x: CX + station.x,
-        y: CY + station.y,
-        name: station.name,
-        isHub: i === 0, // first station is the hub
-      };
+    const allPoints = [];
+    const routePoints = line.routes.map((route) => {
+      const pts = route.map((station, i) => {
+        return {
+          x: CX + station.x,
+          y: CY + station.y,
+          name: station.name,
+          isHub: i === 0 && route === line.routes[0], // first station of first route is hub
+        };
+      });
+      allPoints.push(...pts);
+      return pts;
     });
-    return { ...line, points: pts };
+    // Unique points to avoid duplicate rendering
+    const uniquePoints = allPoints.filter((point, index, self) =>
+      index === self.findIndex(p => p.name === point.name)
+    ).map(point => ({
+      ...point,
+      isTerminus: line.routes.some(route => route[route.length - 1].name === point.name)
+    }));
+    return { ...line, routePoints, points: uniquePoints };
   });
   return layout;
 }
 const LAYOUT = computeLayout();
 
 // Build a set of all unique station names for search
-const ALL_STATIONS = useMemo ? [...new Set(LINES.flatMap((l) => l.stations))] : [];
+const ALL_STATIONS = useMemo ? [...new Set(LINES.flatMap((l) => l.routes.flat()))] : [];
 
 export default function MetraMap() {
   const [selectedLine, setSelectedLine] = useState(null);
   const [search, setSearch] = useState("");
   const [hoveredStation, setHoveredStation] = useState(null);
+  const [showGrid, setShowGrid] = useState(false);
 
   const searchLower = search.toLowerCase().trim();
 
@@ -248,6 +249,20 @@ export default function MetraMap() {
             </button>
           )}
         </div>
+
+        {/* Dev toggle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <input
+            type="checkbox"
+            checked={showGrid}
+            onChange={(e) => setShowGrid(e.target.checked)}
+            id="show-grid"
+            style={{ cursor: "pointer" }}
+          />
+          <label htmlFor="show-grid" style={{ fontSize: 12, color: "#999", cursor: "pointer" }}>
+            Show Grid
+          </label>
+        </div>
       </div>
 
       {/* SVG Map */}
@@ -262,7 +277,7 @@ export default function MetraMap() {
 
           {/* Temporary plotting grid: lines every GRID_SPACING units (lighter),
               with stronger lines every GRID_MAJOR units. Remove when done. */}
-          <g id="plot-grid" aria-hidden="true">
+          {showGrid && <g id="plot-grid" aria-hidden="true">
             {[...Array(Math.floor(SVG_W / GRID_SPACING) + 1)].map((_, i) => {
               const x = i * GRID_SPACING;
               const isMajor = x % GRID_MAJOR === 0;
@@ -296,23 +311,64 @@ export default function MetraMap() {
                 />
               );
             })}
-          </g>
+
+            {/* Grid number labels */}
+            {[...Array(Math.floor(SVG_W / GRID_MAJOR) + 1)].map((_, i) => {
+              const x = i * GRID_MAJOR;
+              const coordX = x - CX;
+              return (
+                <text
+                  key={`label-x-${x}`}
+                  x={x}
+                  y={15}
+                  textAnchor="middle"
+                  fontSize={8}
+                  fill="#888"
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                >
+                  {coordX}
+                </text>
+              );
+            })}
+
+            {[...Array(Math.floor(SVG_H / GRID_MAJOR) + 1)].map((_, i) => {
+              const y = i * GRID_MAJOR;
+              const coordY = y - CY;
+              return (
+                <text
+                  key={`label-y-${y}`}
+                  x={10}
+                  y={y + 3}
+                  textAnchor="start"
+                  fontSize={8}
+                  fill="#888"
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                >
+                  {coordY}
+                </text>
+              );
+            })}
+          </g>}
 
           {/* Hub glow */}
           <circle cx={CX} cy={CY} r={90} fill="url(#hubGlow)" />
 
+          {/* Hub shape */}
+          <rect x={CX - 18} y={CY - 30} width={35} height={50} rx={15} ry={15} stroke="#E8611A" strokeWidth={2} />
+
           {/* Lines */}
           {LAYOUT.map((line) => {
             const dim = dimLine(line);
-            const pts = line.points;
-            const pathD = pts.map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(" ");
             return (
               <g key={line.id} style={{ transition: "opacity 0.3s" }} opacity={dim ? 0.08 : 1}>
-                {/* Line path */}
-                <path d={pathD} fill="none" stroke={line.color} strokeWidth={dim ? 2 : 3.5} strokeLinecap="round" />
+                {/* Line paths */}
+                {line.routePoints.map((pts, routeIndex) => {
+                  const pathD = pts.map((p, i) => (i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`)).join(" ");
+                  return <path key={routeIndex} d={pathD} fill="none" stroke={line.color} strokeWidth={dim ? 2 : 3.5} strokeLinecap="round" />;
+                })}
 
                 {/* Stations */}
-                {pts.map((pt, i) => {
+                {line.points.map((pt, i) => {
                   const isMatch = matchedStations.has(pt.name);
                   const isHovered = hoveredStation === pt.name;
                   const showLabel =
@@ -320,7 +376,7 @@ export default function MetraMap() {
                     (selectedLine === line.id) ||
                     isMatch ||
                     pt.isHub ||
-                    i === pts.length - 1; // terminus
+                    pt.isTerminus;
 
                   // label position: nudge away from center
                   const dx = pt.x - CX;
@@ -334,7 +390,7 @@ export default function MetraMap() {
 
                   return (
                     <g
-                      key={`${line.id}-${i}`}
+                      key={`${line.id}-${pt.name}`}
                       onMouseEnter={() => setHoveredStation(pt.name)}
                       onMouseLeave={() => setHoveredStation(null)}
                       style={{ cursor: "pointer" }}
@@ -368,7 +424,6 @@ export default function MetraMap() {
           })}
 
           {/* Central hub label */}
-          <circle cx={CX} cy={CY} r={18} fill="#1a1d26" stroke="#E8611A" strokeWidth={2} />
           <text x={CX} y={CY - 4} textAnchor="middle" fontSize={7.5} fontWeight={700} fill="#E8611A">CHICAGO</text>
           <text x={CX} y={CY + 5} textAnchor="middle" fontSize={6} fontWeight={400} fill="#666">LOOP</text>
         </svg>
@@ -395,7 +450,7 @@ export default function MetraMap() {
         }}>
           <span style={{ fontWeight: 600 }}>{hoveredStation}</span>
           <span style={{ color: "#555", fontSize: 11 }}>
-            {LINES.filter((l) => l.stations.includes(hoveredStation)).map((l) => (
+            {LINES.filter((l) => l.routes.flat().some(s => s.name === hoveredStation)).map((l) => (
               <span key={l.id} style={{ display: "inline-block", background: l.color + "33", color: l.color, padding: "2px 7px", borderRadius: 10, marginRight: 4, fontSize: 10, fontWeight: 600 }}>
                 {l.id}
               </span>
