@@ -4,7 +4,7 @@ A simplistic representation of the Chicago Metropolitan Rail System.<br/>
 Currently able to search stations by name and sort by rail line.<br/>
 Not created with perfect accuracy, estimated locations and distances for visual purpouses<br/>
 
-Requires Node.js and npm<br/>
+Requires Node.js<br/>
 To Run:<br/>
 - Open into app direcrtory (cd Minimalistic-Metra-Interactive-Map)<br/>
 - Run using "npm run dev"<br/>
