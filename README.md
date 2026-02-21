@@ -9,10 +9,12 @@ Includes: <br/>
   - Labels to highlight what station information (Name & Lines)<br/>
   - A Search Tool that has a bar and tabs that can sort through Names and Lines<br/>
 
+A software created to simplify visuals to give commuters a vision. A vision without the unnecessary clutter and appealing graphics to plan out your future trips
+
 ## How to Install and Run
 Requires Node.js<br/>
 To Run:<br/>
-- Open into app direcrtory (cd Minimalistic-Metra-Interactive-Map)<br/>
+- Open into app directory (cd Minimalistic-Metra-Interactive-Map)<br/>
 - Run using "npm run dev"<br/>
 
 Current Version Screenshots:<br/>
@@ -21,4 +23,4 @@ Current Version Screenshots:<br/>
 
 ### Contact
 If there are any questions, contact me at https://qwaksite.jusimpoy.workers.dev/ <br/>
-All are welcome to give feedback and make changes, following LICENSE.txt
+All are welcome to give feedback and make changes, following the LICENSE provided
